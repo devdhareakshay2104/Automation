@@ -1,0 +1,138 @@
+pipeline {
+    agent any
+
+    environment {
+        EC2_HOST = "ec2-3-239-116-255.compute-1.amazonaws.com"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building...'
+
+                // Create index.html
+                writeFile file: 'index.html', text: '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My AWS Website</title>
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        body{
+            background:linear-gradient(135deg,#4facfe,#00f2fe);
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+        }
+
+        .container{
+            background:white;
+            padding:40px;
+            width:500px;
+            border-radius:12px;
+            text-align:center;
+            box-shadow:0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        h1{
+            color:#0077cc;
+            margin-bottom:15px;
+        }
+
+        h2{
+            color:#333;
+            margin-bottom:20px;
+        }
+
+        p{
+            color:#555;
+            line-height:1.6;
+            margin-bottom:20px;
+        }
+
+        .btn{
+            display:inline-block;
+            padding:12px 25px;
+            background:#0077cc;
+            color:white;
+            text-decoration:none;
+            border-radius:6px;
+            transition:0.3s;
+        }
+
+        .btn:hover{
+            background:#005fa3;
+        }
+
+        footer{
+            margin-top:25px;
+            color:#777;
+            font-size:14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Welcome to My Website</h1>
+
+    <h2>Hosted on AWS EC2</h2>
+
+    <p>
+        This website is successfully deployed on an Amazon EC2 instance.
+        It demonstrates basic web hosting using Apache/Nginx and can be
+        integrated with a CI/CD pipeline using Jenkins.
+    </p>
+
+    <a href="#" class="btn">Learn More</a>
+
+    <footer>
+        © 2026 Akshay Devdhare | AWS EC2 Web Hosting
+    </footer>
+
+</div>
+
+</body>
+</html>
+'''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying to EC2...'
+
+                sh """
+                scp -o StrictHostKeyChecking=no index.html ubuntu@${EC2_HOST}:/tmp/
+
+                ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} << EOF
+                    sudo apt update -y
+                    sudo apt install nginx -y
+                    sudo rm -f /var/www/html/index.nginx-debian.html
+                    sudo cp /tmp/index.html /var/www/html/index.html
+                    sudo systemctl restart nginx
+                EOF
+                """
+            }
+        }
+    }
+}
